@@ -1,0 +1,66 @@
+#ifndef TIME_WHEEL_H_
+#define TIME_WHEEL_H_
+
+#include <chrono>
+#include <list>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "timer.h"
+
+class TimeWheel
+{
+public:
+    TimeWheel(uint32_t scales, uint32_t scale_unit_ms,
+              const std::string& name = "");
+
+    uint32_t scale_unit_ms() const { return m_scaleUnitMs; }
+
+    uint32_t scales() const { return m_scales; }
+
+    uint32_t current_index() const { return m_curIndex; }
+
+    void set_less_level_tw(TimeWheel* lessLevelTW)
+    {
+        m_pLessLevelTW = lessLevelTW;
+    }
+
+    void set_greater_level_tw(TimeWheel* greaterLevelTW)
+    {
+        m_pGreaterLevelTW = greaterLevelTW;
+    }
+
+    int64_t get_current_time() const;
+
+    void add_timer(TimerPtr timer);
+
+    void increase();
+
+    std::list<TimerPtr> get_and_clear_current_slot();
+
+private:
+    std::string m_strName;
+    uint32_t m_curIndex;
+
+    // A time wheel can be devided into multiple scales. A scals has N ms.
+    uint32_t m_scales;
+    uint32_t m_scaleUnitMs;
+
+    // Every slot corresponds to a scale. Every slot contains the timers.
+    std::vector<std::list<TimerPtr>> m_slots;
+
+    TimeWheel* m_pLessLevelTW;    // Less scale unit.
+    TimeWheel* m_pGreaterLevelTW; // Greater scale unit.
+};
+
+using TimeWheelPtr = std::shared_ptr<TimeWheel>;
+
+inline int64_t get_now_time_stamp()
+{
+    using namespace std::chrono;
+    auto now = system_clock::now().time_since_epoch();
+    return duration_cast<milliseconds>(now).count();
+}
+
+#endif // TIME_WHEEL_H_
