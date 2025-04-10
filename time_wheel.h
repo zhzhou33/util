@@ -2,6 +2,7 @@
 #define TIME_WHEEL_H_
 
 #include <chrono>
+#include <cstdint>
 #include <list>
 #include <memory>
 #include <string>
@@ -61,6 +62,12 @@ inline int64_t get_now_time_stamp()
     using namespace std::chrono;
     auto now = system_clock::now().time_since_epoch();
     return duration_cast<milliseconds>(now).count();
+}
+
+inline int64_t get_steady_clock_time()
+{
+    auto now = std::chrono::steady_clock::now().time_since_epoch();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 }
 
 #endif // TIME_WHEEL_H_

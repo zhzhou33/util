@@ -17,17 +17,17 @@ class Timer
 {
 public:
     // Timer() {}
-    Timer(int64_t when_ms, int64_t interval_ms, timer_it* who_is);
+    Timer(int64_t when_ms, int64_t interval_ms, int32_t times, timer_it* who_is);
 
     void run();
 
-    uint32_t id() const { return id_; }
+    uint32_t id() const { return m_id; }
 
-    int64_t when_ms() const { return when_ms_; }
+    int64_t when_ms() const { return m_whenMs; }
 
-    bool repeated() const { return repeated_; }
+    bool repeated() const { return m_repeated; }
 
-    void update_when_time() { when_ms_ += interval_ms_; }
+    void update_when_time() { m_whenMs += m_intervalMs; }
 
     int32_t get_times() const { return m_times; }
 
@@ -39,12 +39,12 @@ public:
     }
 
 private:
-    uint32_t id_;
+    uint32_t m_id;
     // timer_sink_it *sink_;
-    timer_it* who_is_;
-    int64_t when_ms_;
-    uint32_t interval_ms_;
-    bool repeated_;
+    timer_it* m_who;
+    int64_t m_whenMs;
+    uint32_t m_intervalMs;
+    bool m_repeated;
     int32_t m_times;
 };
 
@@ -86,7 +86,7 @@ public:
     timer_elem_t(uint32_t id = 0, thread_wrapper_t* own_thr = NULL);
     virtual ~timer_elem_t() {}
     virtual int32_t add_timer(const timer_sink_it* sink, uint32_t interval,
-                              uint32_t timers = 1);
+                              uint32_t times = 1);
     virtual int32_t remove_timer();
     timer_sink_it* get_sink() const { return m_sink; }
 

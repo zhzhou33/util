@@ -1,4 +1,5 @@
 #include "time_wheel.h"
+#include <iostream>
 
 TimeWheel::TimeWheel(uint32_t scales, uint32_t scale_unit_ms,
                      const std::string& name) :
@@ -30,13 +31,17 @@ void TimeWheel::add_timer(TimerPtr timer)
     {
         less_tw_time = m_pLessLevelTW->get_current_time();
     }
+
+    // for cur time wheel, time will change diff(ms)
+    // we need check whether cur time wheel scale slot change
     int64_t diff = timer->when_ms() + less_tw_time - get_now_time_stamp();
 
     // If the difference is greater than scale unit, the timer can be added into
     // the current time wheel.
     if (diff >= m_scaleUnitMs)
     {
-        size_t n = (m_curIndex + diff / m_scaleUnitMs) % m_scales;
+        // check remaining time whether greater than 5 ms
+        size_t n = (m_curIndex + (diff + 5) / m_scaleUnitMs) % m_scales;
         m_slots[n].push_back(timer);
         return;
     }

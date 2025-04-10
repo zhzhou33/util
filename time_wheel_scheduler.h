@@ -21,10 +21,7 @@ public:
         return &instance;
     }
 
-    // Return timer id. Return 0 if the timer creation fails.
-    // uint32_t CreateTimerAt(int64_t when_ms, const TimerTask& task);
-    // uint32_t CreateTimerAfter(int64_t delay_ms, const TimerTask& task);
-    // uint32_t CreateTimerEvery(int64_t interval_ms, const TimerTask& task);
+    void init();
 
     uint32_t add_timer(const timer_sink_it* sink, uint32_t interval,
                        uint32_t timers, timer_it* who_is);
@@ -35,6 +32,8 @@ public:
     void stop();
 
     void append_time_wheel(uint32_t scales, uint32_t scaleUnitMs, const std::string& strName = "");
+
+    void run_once();
 
 private:
     TimeWheelManager();
@@ -55,6 +54,8 @@ private:
 
     uint32_t m_timerStepMs;
     std::vector<TimeWheelPtr> m_timeWheels;
+
+    int64_t m_preRunTime;
 };
 
 #endif // TIME_WHEEL_SCHEDULER_H_

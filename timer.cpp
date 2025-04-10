@@ -6,18 +6,21 @@
 #include <cstdint>
 
 Timer::Timer(int64_t when_ms, int64_t interval_ms,
-             timer_it* who_is) :
-    interval_ms_(interval_ms), repeated_(interval_ms_ > 0), when_ms_(when_ms),
-    who_is_(who_is)
+             int32_t times, timer_it* who_is) :
+    m_intervalMs(interval_ms),
+    m_repeated(times > 0),
+    m_whenMs(when_ms),
+    m_times(times),
+    m_who(who_is)
 {
 }
 
 void Timer::run()
 {
-    timer_sink_it* sink = who_is_->get_sink();
+    timer_sink_it* sink = m_who->get_sink();
     if (sink)
     {
-        sink->timer_work(who_is_);
+        sink->timer_work(m_who);
     }
 }
 
@@ -27,10 +30,10 @@ timer_it::timer_it(uint32_t id, thread_wrapper_t* ownThr) :
 }
 
 int32_t timer_it::add_timer(const timer_sink_it* sink, uint32_t interval,
-                            uint32_t timers)
+                            uint32_t times)
 {
     TimeWheelManager* timeWheelScheduler = TimeWheelManager::get_instance();
-    timeWheelScheduler->add_timer(sink, interval, timers, this);
+    timeWheelScheduler->add_timer(sink, interval, times, this);
     return 0;
 }
 
@@ -41,9 +44,9 @@ timer_elem_t::timer_elem_t(uint32_t id, thread_wrapper_t* own_thr) :
 }
 
 int32_t timer_elem_t::add_timer(const timer_sink_it* sink, uint32_t interval,
-                                uint32_t timers)
+                                uint32_t times)
 {
-    int32_t ret = timer_it::add_timer(sink, interval, timers);
+    int32_t ret = timer_it::add_timer(sink, interval, times);
     if (ret == 0)
         m_sink = const_cast<timer_sink_it*>(sink);
     return ret;

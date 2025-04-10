@@ -1,58 +1,127 @@
-#include <iostream>
+#include <cstddef>
 #include <string>
 #include <thread>
 
+#include "spdlog/sinks/rotating_file_sink.h"
 #include "test.h"
+#include "thread_mgr.h"
+#include "time_wheel.h"
 #include "time_wheel_scheduler.h"
+#include <chrono>
+// #include "time_common.h"
+#include "util.h"
+#include "util_common.h"
 
-std::string timetoStr()
+USING_UTIL_NAMEPACE
+
+void handle_user_event()
 {
-    char tmp[64] = {0};
-    time_t t = time(NULL);
-    tm *tm = localtime(&t);
-    sprintf(tmp, "%02d:%02d:%02d", tm->tm_hour, tm->tm_min, tm->tm_sec);
-    return tmp;
+    Test* test = new Test();
+    test->func();
 }
+
+void worker1_func(util::RingBuffer<int>& rb)
+{
+    int counter = 0;
+    while (true)
+    {
+        if (rb.push(counter) == 0)
+        {
+            counter++;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // 模拟工作负载
+    }
+}
+
+// 工作线程2：向另一个 RingBuffer 写入数据
+void worker2_func(util::RingBuffer<int>& rb)
+{
+    int counter = 1000;
+    while (true)
+    {
+        if (rb.push(counter) == 0)
+        {
+            counter++;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // 模拟工作负载
+    }
+}
+
+// 主定时器线程：每隔10ms读取两个 RingBuffer 的数据
+void timer_func(util::RingBuffer<int>& rb1, util::RingBuffer<int>& rb2)
+{
+    while (true)
+    {
+        // 读取 rb1 的数据
+        int data;
+        while (rb1.pop(data) == 0)
+        {
+            std::cout << "[Worker1] Data: " << data << std::endl;
+        }
+
+        // 读取 rb2 的数据
+        while (rb2.pop(data) == 0)
+        {
+            std::cout << "[Worker2] Data: " << data << std::endl;
+        }
+
+        // 每隔10ms轮询一次
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+}
+
+class customer_msg : public msg
+{
+public:
+    virtual void on_message()
+    {
+        std::cout << data << std::endl;
+    }
+
+public:
+    std::string data;
+};
 
 int main()
 {
-    // Four level time wheels: Hour, Minute, Secon, Millisecond.
-    int timer_step_ms = 50;
-    TimeWheelScheduler *tws = TimeWheelScheduler::getInstance();
-    // Hour time wheel. 24 scales, 1 scale = 60 * 60 * 1000 ms.
-    tws->AppendTimeWheel(24, 60 * 60 * 1000, "HourTimeWheel");
-    // Minute time wheel. 60 scales, 1 scale = 60 * 1000 ms.
-    tws->AppendTimeWheel(60, 60 * 1000, "MinuteTimeWheel");
-    // Second time wheel. 60 scales, 1 scale = 1000 ms.
-    tws->AppendTimeWheel(60, 1000, "SecondTimeWheel");
-    // Millisecond time wheel. 1000/timer_step_ms scales, 1 scale = timer_step ms.
-    tws->AppendTimeWheel(1000 / timer_step_ms, timer_step_ms, "MillisecondTimeWheel");
+    auto my_logger = spdlog::rotating_logger_mt("UTIL", "logs/log.log", 1024 * 1024 * 10, 10);
+    my_logger->set_level(spdlog::level::trace);
+    // spdlog::set_pattern("[%H:%M:%S %z] %v");
+    spdlog::set_default_logger(my_logger);
 
-    tws->Start();
+    // spdlog::cfg::load_env_levels();
 
-    // tws.CreateTimerAt(GetNowTimestamp() + 10000, []() { std::cout << "At now+10s" << std::endl; });
+    UTIL_LOG_INFO("hello " << "world");
 
-    // tws.CreateTimerAfter(500, []() { std::cout << "After 0.5s" << std::endl; });
+    TimeWheelManager* timeWhellMgr = TimeWheelManager::get_instance();
 
-    // std::cout << timetoStr() << std::endl;
-    // auto timer_id = tws.CreateTimerEvery(5000, []() { std::cout << "Every 5s: " << timetoStr() << std::endl; });
+    timeWhellMgr->init();
 
-    // tws.CreateTimerEvery(30 * 1000, []() { std::cout << "Every 30s: " << timetoStr() << std::endl; });
+    timeWhellMgr->start();
+    handle_user_event();
 
-    // tws.CreateTimerEvery(60 * 1000, []() { std::cout << "Every 1m: " << timetoStr() << std::endl; });
+    // util::RingBuffer<int> buufer(4);
 
-    // tws.CreateTimerEvery(90 * 1000, []() { std::cout << "Every 1.5m: " << timetoStr() << std::endl; });
+    // util::RingBuffer<int> rb1(4);
+    // util::RingBuffer<int> rb2(4);
 
-    // tws.CreateTimerEvery(120 * 1000, []() { std::cout << "Every 2m: " << timetoStr() << std::endl; });
+    // // 启动工作线程
+    // std::thread worker1(worker1_func, std::ref(rb1));
+    // std::thread worker2(worker2_func, std::ref(rb2));
 
-    Test *test = new Test();
-    test->func();
+    ThreadWrapper* thr = ThreadMgr::instance()->create_thread();
+    // timer_func(rb1, rb2);
+    customer_msg* data = new customer_msg();
+    data->data = "hello";
+    thr->post_msg(data);
 
-    std::this_thread::sleep_for(std::chrono::seconds(30));
-    // tws.CancelTimer(timer_id);
-
-    std::this_thread::sleep_for(std::chrono::minutes(20));
-    tws->Stop();
+    // worker1.join();
+    // worker2.join();
+    while (true)
+    {
+        timeWhellMgr->run_once();
+        thr->thread_run();
+    }
 
     return 0;
 }
